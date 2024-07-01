@@ -187,13 +187,16 @@
     gpu: 0 1
     #kernel: simple Pass1 simpleConvolutionPass2
 
-pmc refers to which metrics we are tracking
+---
+**NOTE**
 
-range specifies the range of the kernels being dispatched 
+`pmc`: refers to which metrics we are tracking
 
-gpu refers to which GPUs we are going to use
+`range`: specifies the range of the kernels being dispatched; dispatches are initiated by queue dispatch packets in the format supported by the queue. Dispatches are the means that waves are created on the AMD GPU. 
 
-kernel specifies the kernel(s) we want to specifically monitor
+`gpu`: refers to which GPUs we are going to use
+
+`kernel`: specifies the kernel(s) we want to specifically monitor
 
 ----------------------------------------------------------------------------------------------------------------------------------------------
 
