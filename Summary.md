@@ -176,6 +176,7 @@
 | **CC (Coherently Cached)** | When information is cached so that all caches are able to have a consistent view of the memory to all processors. Allows for efficient data sharing among the cores/processors. |
 | **UC (Uncached)** | Not cached |
 | **SPI (Shader processor input)** | Shader processors are specialized units in the GPU designed to handle tasks that required shading specifically for rendering graphics. The inputs can vary depending on the stage within the rendering pipeline but they include vertex data, textures/samplers, uniforms/constants, interpolants, and buffers. |
+
 --------------------------------------------------------------------------------------------------------------------------------------------
 <h1>Input File</h1>
 
@@ -194,7 +195,7 @@ gpu refers to which GPUs we are going to use
 
 kernel specifies the kernel(s) we want to specifically monitor
 
-    # missing image #
+----------------------------------------------------------------------------------------------------------------------------------------------
 
 <h1>Using rocprof for application tracing </h1>
 
