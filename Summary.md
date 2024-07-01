@@ -188,52 +188,32 @@ pmc refers to which metrics we are tracking
 range specifies the range of the kernels being dispatched 
 gpu refers to which GPUs we are going to use
 kernel specifies the kernel(s) we want to specifically monitor
+# missing image #
 
+Using rocprof for application tracing (
+--plugin  PLUGIN_NAME         For enabling a plugin (cli/file/perfetto/att/ctf)
+    # usage(file/perfetto/ctf) e.g: rocprofv2 -i pmc.txt --plugin [file/perfetto/ctf] -d out_dir <executable>
+    # usage(att): rocprofv2 <rocprofv2_params> --plugin att <ISA_file> <att_parameters> <executable>
+    # use "rocprofv2 --plugin att --help" for ATT-specific parameters help.
 
+--plugin-version  <1|2>       For selecting the version for the plugin (1/2)
+    # 1 - Legacy output format, 2 - New output format (default)
 
+-i  or  --input                For adding counters file path (every line in the text file represents a counter)
+    # usage: rocprofv2 -i pmc.txt -d <executable>
 
+-o  or  --output-file-name          For the output file name
+    # usage e.g:(with current dir): rocprofv2 --hip-trace -o <file_name> <executable>
+    # usage e.g:(with custom dir):  rocprofv2 --hip-trace -d <out_dir> -o <file_name> <executable>
 
+-d  or  --output-directory     For adding output path where the output files will be saved
+    # usage e.g:(with custom dir):  rocprofv2 --hip-trace -d <out_dir> <executable>
 
+-fi or  --flush-interval       For adding a flush interval in milliseconds, every "flush interval" the buffers will be flushed
+    # usage e.g:  rocprofv2 --hip-trace -fi 1000 <executable>
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Using rocprof for application tracing 
-Options
-Description
--d <data directory>
-To specify the directory where the profiler stores traces and the profiling data. The profiler stores the profiling data in a temporary directory [/tmp] by default, which is removed automatically after a specific period. Specifying a directory explicitly allows you to prevent loss of data.
---hip-trace
-To trace API execution stats, HIP API calls, and copy operation calls. Read more 
---hsa-trace
-To trace API execution stats, HSA API calls, kernel execution stats, and copy operation calls. Read more 
---sys-trace
-To trace API execution stats, HIP and HSA API calls, and copy operation calls. Read more 
---roctx-trace
-To enable roctx application code annotation trace. Allows you to trace a particular block of code when Markers and Ranges are specified in the application code. Read more 
---stats
-To trace API execution stats and kernel execution stats
---basenames <on|off>
-To enable/disable truncation of the kernel full function names in the trace, till the base ones. Default value: [off]. Read more 
---flush-rate
-To enable trace flush rate . Supported time formats: <number(m|s|ms|us)>. Read more 
---roctx-rename
-To rename long kernel names. Kernel renaming is recommended only in special cases where kernel names are auto generated in an incomprehensible format.
---trace-start <on|off>
-To enable/disable tracing for a HIP API or code block. Default value: [on]. Read more 
---trace-period <delay:length:rate>
-To enable tracing with an initial delay, periodic sample length and rate. Supported time formats: <number(m|s|ms|us)> 
+-tp or  --trace-period        Specifies a trace period in milliseconds, with format "-tp <DELAY>:<ACTIVE_TIME>:<LOOP_RESET_TIME>".
+    # usage e.g:  rocprofv2 --hip-trace -tp 1000:2000:4000 <executable>
 
 Ex. 
 rocprof --stats --basenames on --timestamp on -d ${SLURM_JOBID} -i inputs.txt -o first_attempt.csv /home/aamarli/rocHPCG/build/release/bin/rochpcg 280 280 280 15
