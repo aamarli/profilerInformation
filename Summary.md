@@ -1,4 +1,4 @@
-<h1>Metrics (Some of the descriptions on https://rocm.docs.amd.com/en/latest/conceptual/gpu-arch/mi300-mi200-performance-counters.html# are better)</h1>
+<h1>Metrics (Some of the descriptions on <a href= "https://rocm.docs.amd.com/en/latest/conceptual/gpu-arch/mi300-mi200-performance-counters.html">AMD ROCM DOCS</a> are better)</h1>
 
 | Metric Name | Description |
 | -- | -- |
