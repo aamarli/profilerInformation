@@ -19,7 +19,7 @@
 | **SALUBusy** |   The percentage of GPUTime scalar ALU instructions are processed. Value range |
 | **SALUInsts** |   The average number of scalar ALU instructions executed per work-item (affected by flow control). |
 | **SFetchInsts** |   The average number of scalar fetch instructions from the video memory executed per work-item (affected by flow control). |
-| Refer to **"Texture Addressing Unit"** | Section for more information on results https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html__ |
+| Refer to <a href= "https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html"> Texture Addressing Unit</a> for more details on results|  |
 | **TA_ADDR_STALLED_BY_TC_CYCLES_sum** |   Number of cycles addr path stalled by TC. Perf_Windowing not supported for this counter. Sum over TA instances. |
 | **TA_ADDR_STALLED_BY_TD_CYCLES_sum** |   Number of cycles addr path stalled by TD. Perf_Windowing not supported for this counter. Sum over TA instances. |
 | **TA_BUFFER_ATOMIC_WAVEFRONTS_sum** |   Number of buffer atomic wavefronts processed by TA. Sum over TA instances. |
@@ -39,10 +39,10 @@
 | **TA_FLAT_WRITE_WAVEFRONTS_sum** |   Number of flat opcode writes processed by the TA. Sum over TA instances. |
 | **TA_TA_BUSY_sum** |   TA block is busy. Perf_Windowing not supported for this counter. Sum over TA instances. |
 | **TA_TOTAL_WAVEFRONTS_sum** |   Total number of wavefronts processed by TA. Sum over TA instances. |
-| Refer to **"Texture Cache Arbiter"** | Section for more information on results https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html__ |
+| Refer to <a href= "https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html"> Texture Cache Arbiter</a> for more details on results|  |
 | **TCA_BUSY_sum** |   Number of cycles we have a request pending. Sum over all TCA instances. |
 | **TCA_CYCLE_sum** |   Number of cycles. Sum over all TCA instances |
-| Refer to  **"L2 Cache Access"** |  Section for more information on results https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html |
+| Refer to <a href= "https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html"> L2 Cache Access</a> for more details on results|  |
 | **TCC_ALL_TC_OP_INV_EVICT_sum** |   Number of evictions due to all TC_OP invalidate requests. Sum over TCC instances. |
 | **TCC_ALL_TC_OP_WB_WRITEBACK_sum** |   Number of writebacks due to all TC_OP writeback requests. Sum over TCC instances. |
 | **TCC_ATOMIC_sum** |   Number of atomic requests of all types. Sum over TCC instances. |
@@ -87,7 +87,7 @@
 | **TCC_WRITEBACK_sum** |   Number of lines written back to main memory. This includes writebacks of dirty lines and uncached write/atomic requests. Sum over TCC instances. |
 | **TCC_WRITE_sum** |   Number of write requests. Sum over TCC instances. |
 | **TCC_WRREQ_STALL_max** |   Number of cycles a write request was stalled. Max over TCC instances. |
-| Refer to **"Vector L1D Cache"** | Section for more information https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html__ |
+| Refer to <a href= "https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html"> Vector L1D Cache</a> for more details on results|  |
 | **TCP_ATOMIC_TAGCONFLICT_STALL_CYCLES_sum** |   Tagram conflict stall on an atomic. Sum over TCP instances. |
 | **TCP_GATE_EN1_sum** |   TCP interface clocks are turned on. Not Windowed. Sum over TCP instances. |
 | **TCP_GATE_EN2_sum** |   TCP core clocks are turned on. Not Windowed. Sum over TCP instances. |
@@ -131,7 +131,7 @@
 | **TCP_UTCL1_TRANSLATION_MISS_sum** |   Total utcl1 translation misses Sum over TCP instances. |
 | **TCP_VOLATILE_sum** |   Total number of L1 volatile pixels/buffers from TA. Sum over TCP instances. |
 | **TCP_WRITE_TAGCONFLICT_STALL_CYCLES_sum** |   Tagram conflict stall on a write. Sum over TCP instances. |
-| Refer to **"Texture Data Unit"** | Section for more information on results https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html__ |
+| Refer to <a href= "https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html"> Texture Data Unit</a> for more details on results|  |
 | **TD_ATOMIC_WAVEFRONT_sum** |   Count the wavefronts with opcode = atomic. Sum over TD instances. |
 | **TD_COALESCABLE_WAVEFRONT_sum** |   Count wavefronts that TA finds coalescable. Sum over TD instances. |
 | **TD_LOAD_WAVEFRONT_sum** |   Count the wavefronts with opcode = load, include atomics and store. Sum over TD instances. |
