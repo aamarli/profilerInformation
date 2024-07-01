@@ -1,21 +1,39 @@
 Metrics (Some of the descriptions on https://rocm.docs.amd.com/en/latest/conceptual/gpu-arch/mi300-mi200-performance-counters.html# are better)
+
 ALUStalledByLDS   The percentage of GPUTime ALU units are stalled by the LDS input queue being full or the output queue being not ready. If there are LDS bank conflicts, reduce them. Otherwise, try reducing the number of LDS accesses if possible. Value range
+
 FetchSize or FETCH_SIZE  The total kilobytes fetched from the video memory. This is measured with all extra fetches and any cache or memory effects taken into account.
+
 FlatLDSInsts   The average number of FLAT instructions that read or write to LDS executed per work item (affected by flow control).
+
 FlatVMemInsts   The average number of FLAT instructions that read from or write to the video memory executed per work item (affected by flow control). Includes FLAT instructions that read from or write to scratch.
+
 GDSInsts   The average number of GDS read or GDS write instructions executed per work item (affected by flow control).
+
 GPUBusy   The percentage of time GPU was busy.
+
 L2CacheHit   The percentage of fetch, write, atomic, and other instructions that hit the data in L2 cache. Value range
+
 LDSBankConflict   The percentage of GPUTime LDS is stalled by bank conflicts. Value range
+
 LDSInsts   The average number of LDS read or LDS write instructions executed per work item (affected by flow control).  Excludes FLAT instructions that read from or write to LDS.
+
 MeanOccupancyPerActiveCU   Mean occupancy per active compute unit.
+
 MeanOccupancyPerCU   Mean occupancy per compute unit.
+
 MemUnitBusy   The percentage of GPUTime the memory unit is active. The result includes the stall time (MemUnitStalled). This is measured with all extra fetches and writes and any cache or memory effects taken into account. Value range
+
 MemUnitStalled   The percentage of GPUTime the memory unit is stalled. Try reducing the number or size of fetches and writes if possible. Value range
+
 MemWrites32B   The total number of effective 32B write transactions to the memory
+
 SALUBusy   The percentage of GPUTime scalar ALU instructions are processed. Value range
+
 SALUInsts   The average number of scalar ALU instructions executed per work-item (affected by flow control).
+
 SFetchInsts   The average number of scalar fetch instructions from the video memory executed per work-item (affected by flow control).
+
 ------------------------------------------------------------------------------------------------------------------------------------------
 Refer to "Texture Addressing Unit" section for more information on results https://rocm.docs.amd.com/en/docs-5.7.1/understand/gpu_arch/mi200_performance_counters.html
 TA_ADDR_STALLED_BY_TC_CYCLES_sum   Number of cycles addr path stalled by TC. Perf_Windowing not supported for this counter. Sum over TA instances.
