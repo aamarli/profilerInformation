@@ -111,4 +111,32 @@ hsa_status_t HsaRsrcFactory::LoadAqlProfileLib(aqlprofile_pfn_t* api) {
 }
 ```
 
-The two parts of this code that I want to highlight are the #IFDEF statement found in the constructor, that if true, calls the `LoadAqlProfileLib` function which ends up calling the `dlopen`
+The two parts of this code that I want to highlight are the #IFDEF statement found in the constructor, that if true, calls the `LoadAqlProfileLib` function which ends up calling the `dlopen` to load a library, and second, the `dlsym` calls which are used to look up the specific symbols within the loaded library.
+
+`void *dlopen(const char *filename, int flag);` 
+`void *dlsym(void *handle, const char *symbol);`
+
+These are the method headers for these two functions
+
+The reason that we are looking at this portion of the code is that there is reason to believe that dlopen is being used to grab some data
+
+When Jenn was running an `strace` on the rocprofiler she found that a context was collected while there was also a call to the `libhsa-amd-aqlprofile64.so.1` library which is one of the libraries grabbed during the `dlopen`.
+```
+ROCPRofiler: 1 contexts collected, output directory /tmp/rpl_data_240701_152238_1418947/input0_results_240701_152238
+   1419127:
+   1419127:    calling fini: /opt/rocm-6.0.0/lib/librocprofiler64.so.1 [0]
+   1419127:
+   1419127:
+   1419127:    calling fini: /opt/rocm-6.0.0/lib/libhsa-amd-aqlprofile64.so.1 [0]
+   1419127:
+   1419127:
+   1419127:    calling fini: /opt/rocm-6.0.0/lib/libhsa-runtime64.so.1 [0]
+   1419127:
+   1419127:
+   1419127:    calling fini: /lib64/libnuma.so.1 [0]
+   1419127:
+   1419127:
+   1419127:    calling fini: /lib64/libdrm_amdgpu.so.1 [0]
+   1419127:
+   ```
+This could mean that the `dlopen` is being used to help grab some data.
