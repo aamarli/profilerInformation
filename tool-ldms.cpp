@@ -1,0 +1,170 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+
+#ifdef HAVE_LDMS
+
+
+/*
+typedef struct rpConnector(
+	int to;
+        int ldms_lib;
+        int posix_enable_ldms;
+        int mpiio_enable_ldms;
+        int stdio_enable_ldms;
+        int hdf5_enable_ldms;
+        const char *exepath;
+        const char *exe_tmp;
+        const char *schema;
+        const char *filepath;
+        const char* env_ldms_stream;
+        const char* env_ldms_reinit;
+        int server_rc;
+        int64_t jobid;
+        int64_t uid;
+        char hname[HOST_NAME_MAX];
+        int64_t hdf5_data[5];
+        int64_t open_count;
+        int64_t write_count;
+        int conn_status;
+        struct timespec ts;
+        pthread_mutex_t ln_lock;
+        ldms_t ldms_darsh;
+        ldms_t ldms_g;
+        sem_t recv_sem;
+        sem_t conn_sem;
+} rpConnector; */
+
+struct rpConnector rp;
+
+static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
+{
+        switch (e->type) {
+        case LDMS_XPRT_EVENT_CONNECTED:
+                sem_post(&conn_sem);
+                conn_status = 0;
+                break;
+        case LDMS_XPRT_EVENT_REJECTED:
+                ldms_xprt_put(x);
+                conn_status = ECONNREFUSED;
+                break;
+        case LDMS_XPRT_EVENT_DISCONNECTED:
+                ldms_xprt_put(x);
+                conn_status = ENOTCONN;
+                break;
+        case LDMS_XPRT_EVENT_ERROR:
+                conn_status = ECONNREFUSED;
+                break;
+        case LDMS_XPRT_EVENT_RECV:
+                sem_post(&recv_sem);
+                break;
+        case LDMS_XPRT_EVENT_SEND_COMPLETE:
+                break;
+        default:
+                printf("Received invalid event type %d\n", e->type);
+        }
+}
+
+ldms_t setup_connection(const char *xprt, const char *host,
+                        const char *port, const char *auth)
+{
+        char hostname[PATH_MAX];
+        const char *timeout = "5";
+        int rc;
+        struct timespec ts;
+
+        if (!host) {
+                if (0 == gethostname(hostname, sizeof(hostname)))
+                        host = hostname;
+        }
+        if (!timeout) {
+                ts.tv_sec = time(NULL) + 5;
+                ts.tv_nsec = 0;
+        } else {
+                int to = atoi(timeout);
+                if (to <= 0)
+                        to = 5;
+                ts.tv_sec = time(NULL) + to;
+                ts.tv_nsec = 0;
+        }
+
+        ldms_g = ldms_xprt_new_with_auth(xprt, auth, NULL);
+        if (!ldms_g) {
+                printf("Error %d creating the '%s' transport\n",
+                       errno, xprt);
+                return NULL;
+        }
+
+        sem_init(&recv_sem, 1, 0);
+        sem_init(&conn_sem, 1, 0);
+
+        rc = ldms_xprt_connect_by_name(ldms_g, host, port, event_cb, NULL);
+        if (rc) {
+                printf("Error %d connecting to %s:%s\n",
+                       rc, host, port);
+                return NULL;
+        }
+        sem_timedwait(&conn_sem, &ts);
+        if (conn_status)
+                return NULL;
+        return ldms_g;
+}
+
+void ldms_connector_init() 
+{
+	const char* env_ldms_stream =  getenv("DARSHAN_LDMS_STREAM");
+	const char* env_ldms_xprt    = getenv("DARSHAN_LDMS_XPRT");
+	const char* env_ldms_host    = getenv("DARSHAN_LDMS_HOST");
+	const char* env_ldms_port    = getenv("DARSHAN_LDMS_PORT");
+	const char* env_ldms_auth    = getenv("DARSHAN_LDMS_AUTH");
+
+	if (!env_ldms_xprt || !env_ldms_host || !env_ldms_port || !env_ldms_auth || env_ldms_stream) {
+		printf("Either the transport, host, port or authentication is not given\n");
+        return;
+    }
+
+	const char* env_ldms_host    = getenv("*_LDMS_HOST");
+	const char* env_ldms_port    = getenv("*_LDMS_PORT");
+
+	const char* slurm_job_id_str = getenv("SLURM_JOB_ID");
+	const char* openmpi_job_str  = getenv("OMPI_COMM_WORLD_RANK");
+	const char* slurm_rank_str   = getenv("SLURM_PROCID");
+
+	const char* tool_verbose_str = getenv("*_LDMS_VERBOSE");
+	const char* slurm_node_list_char = getenv("SLURM_JOB_NODELIST");
+	
+	const char* rocp_input_metrics = getenv("ROCP_INPUT_METRICS");
+	const char* rocp_timestamp = getenv("ROCP_TIMESTAMP_ON");
+
+	gethostname(hostname_kp, HOST_NAME_MAX);
+	
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
