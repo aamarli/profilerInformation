@@ -113,11 +113,11 @@ ldms_t setup_connection(const char *xprt, const char *host,
 
 void ldms_connector_init() 
 {
-	const char* env_ldms_stream =  getenv("DARSHAN_LDMS_STREAM");
-	const char* env_ldms_xprt    = getenv("DARSHAN_LDMS_XPRT");
-	const char* env_ldms_host    = getenv("DARSHAN_LDMS_HOST");
-	const char* env_ldms_port    = getenv("DARSHAN_LDMS_PORT");
-	const char* env_ldms_auth    = getenv("DARSHAN_LDMS_AUTH");
+	const char* env_ldms_stream =  getenv("*_LDMS_STREAM");
+	const char* env_ldms_xprt    = getenv("*_LDMS_XPRT");
+	const char* env_ldms_host    = getenv("*_LDMS_HOST");
+	const char* env_ldms_port    = getenv("*_LDMS_PORT");
+	const char* env_ldms_auth    = getenv("*_LDMS_AUTH");
 
 	if (!env_ldms_xprt || !env_ldms_host || !env_ldms_port || !env_ldms_auth || env_ldms_stream) {
 		printf("Either the transport, host, port or authentication is not given\n");
