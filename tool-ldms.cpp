@@ -36,7 +36,6 @@ typedef struct rpConnector(
         sem_t conn_sem;
 } rpConnector; */
 
-struct rpConnector rp;
 
 static void event_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 {
