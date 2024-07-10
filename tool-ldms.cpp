@@ -135,7 +135,7 @@ void ldms_connector_init()
 
 	gethostname(hostname_kp, HOST_NAME_MAX);
 		    /* Check/set LDMS deamon connection AAMARLI - remove the struct stuff in the below */
-    if (!env_ldms_xprt || *env_ldms_xprt == '\0'){
+    if (!env_ldms_xprt || *env_ldms_xprt == '\0'){ //idk if we need rocp_cor_fprintf or if we can just use an fprintf 
 	rocp_core_fprintf(stderr, "LDMS library: rocpConnector - transport for LDMS streams deamon connection is not set. Setting to default value \"sock\".\n");
 	env_ldms_xprt = "sock";}
 
@@ -151,30 +151,30 @@ void ldms_connector_init()
 	rocp_core_fprintf(stderr, "LDMS library: rocpConnector - authentication for LDMS streams deamon connection is not set. Setting to default value \"munge\".\n");
 	env_ldms_auth = "munge";}
 
-    if (!dC.env_ldms_stream || *dC.env_ldms_stream == '\0'){
-	rocp_core_fprintf(stderr, "LDMS library: darshanConnector - stream name for LDMS streams deamon connection is not set. Setting to default value \"darshanConnector\".\n");
-	dC.env_ldms_stream = "darshanConnector";}
+    if (!env_ldms_stream || *env_ldms_stream == '\0'){
+	rocp_core_fprintf(stderr, "LDMS library: rocPConnector - stream name for LDMS streams deamon connection is not set. Setting to default value \"rocPConnector\".\n");
+	env_ldms_stream = "rocpConnector";}
 	
 }
 
 pthread_mutex_lock(&ln_lock);
 void write_ldms_record(int mpi_rank, RegionProfile& profile)
 {
-    caliper_ldms_connector_initialize();
+    //caliper_ldms_connector_initialize();
 
     std::map<std::string, double> region_times;
     double total_time = 0;
 
-    int buffer_size = 4096;
-    char* buffer = (char*) malloc (sizeof(char) * buffer_size);
+    //int buffer_size = 4096;
+    //char* buffer = (char*) malloc (sizeof(char) * buffer_size);
 
     const char*   env_ldms_jobid_str            = getenv("SLURM_JOB_ID");
     const char*   env_ldms_procid               = getenv("SLURM_PROCID");
     const char*   env_ldms_slurm_nodelist       = getenv("SLURM_JOB_NODELIST");
-    const char*   env_ldms_caliper_verbose_str  = getenv("CALIPER_LDMS_VERBOSE");
+    const char*   env_ldms_rocp_verbose_str  = getenv("ROCP_LDMS_VERBOSE");
 
     int env_ldms_jobid = env_ldms_jobid_str == NULL ? 0 : atoi( env_ldms_jobid_str );
-    int env_ldms_caliper_verbose = env_ldms_caliper_verbose_str == NULL ? 0 : atoi( env_ldms_caliper_verbose_str );
+    int env_ldms_rocp_verbose = env_ldms_rocp_verbose_str == NULL ? 0 : atoi( env_ldms_rocp_verbose_str );
 
     std::tie(region_times, std::ignore, total_time) =
         profile.inclusive_region_times();
@@ -190,21 +190,21 @@ void write_ldms_record(int mpi_rank, RegionProfile& profile)
     	// std::string path_msg = "" + p.first;
         const char* path = p.first.c_str();
 
-        if (mpi_rank >= 0) {
+      /*  if (mpi_rank >= 0) {
             snprintf(buffer, buffer_size, "{ \"timestamp\": %f, \"jobid\" : %d, \"rank\" : %d, \"procid\" : %s, \"nodelist\" : %s, \"caliper-perf-data\", \"duration\": %f, \"path\": \"%s\"} \n", unix_ts, env_ldms_jobid, mpi_rank, env_ldms_procid, env_ldms_slurm_nodelist, p.second, path);
 	    } else {
 	        snprintf(buffer, buffer_size, "{ \"timestamp\": %f, \"jobid\" : %d, \"rank\": %d, \"procid\" : %s, \"nodelist\" : %s, \"caliper-perf-data\", \"duration\": %f, \"path\": \"%s\"} \n", unix_ts, env_ldms_jobid, 0, env_ldms_procid, env_ldms_slurm_nodelist, p.second, path);
 	    }
-
-	    if (env_ldms_caliper_verbose > 0)
+*/
+	    if (env_ldms_rocp_verbose > 0)
 		    puts(buffer);
 
-    	int rc = ldmsd_stream_publish( ldms_cali, "caliper-perf-data", LDMSD_STREAM_JSON, buffer, strlen(buffer) + 1);
+  //  	int rc = ldmsd_stream_publish( ldms_cali, "caliper-perf-data", LDMSD_STREAM_JSON, buffer, strlen(buffer) + 1);
 
 	    if (rc)
 		     Log(0).stream() << "Error " << rc << " publishing data.\n";
-    	else if (env_ldms_caliper_verbose > 0)
-	    	 Log(2).stream() << "Caliper Message published successfully\n";
+    	else if (env_ldms_rocp_verbose > 0)
+	    	 Log(2).stream() << "ROCProf Message published successfully\n";
 	}
 }
 
