@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ldms/ldms.h>
+#include <ldms/ldmsd_stream_publish>
 
 
 #ifdef HAVE_LDMS
@@ -207,11 +209,6 @@ void write_ldms_record(int mpi_rank, RegionProfile& profile)
 	    	 Log(2).stream() << "ROCProf Message published successfully\n";
 	}
 }
-
-
-
-
-
 
 
 

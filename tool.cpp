@@ -51,6 +51,12 @@ THE SOFTWARE.
 #include <rocprofiler.h>
 #include "util/hsa_rsrc_factory.h"
 
+#include <ldms/ldms.h>
+#include <ldms/ldmsd_stream.h>
+#include <ldms/ldms_xprt.h>
+
+
+
 #define PUBLIC_API __attribute__((visibility("default")))
 #define CONSTRUCTOR_API __attribute__((constructor))
 #define DESTRUCTOR_API __attribute__((destructor))
@@ -364,6 +370,21 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       oss << index << "__" << filter_kernel_name(entry->data.kernel_name);
 
       int cx;
+      int rc;
+      char xprt[] = "sock";
+      char auth[] = "munge";
+      char stream[] = "amd_gpu_sampler";
+      ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+      char port[] = "10544";
+      char host[] = "localhost";
+
+      ldms_t ldms = NULL;
+      int rc;
+
+      ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
+      rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
+
+
       cx = snprintf(buffer, bufferSize, "{ \"dispatch\":%u, \"gpu-id\":%u, \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\", \"kernel-name\":\"%s\"%s",
         index,
         agent_info->dev_index,
@@ -389,7 +410,9 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
         record->complete);
       else snprintf(buffer+cx, bufferSize-cx, " }\n");
       /*fflush(file_handle); <<< we need to understand this better before we use it */
-    }
+    
+   }
+    ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(s)+1);
     printf("%s", buffer);
     if (record && to_clean) {
       delete record;
