@@ -353,6 +353,16 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
     FILE* file_handle = entry->file_handle;
     int bufferSize = 4096;
     char* buffer = (char*) malloc (sizeof(char) * bufferSize);
+
+    char xprt[] = "sock";
+    char auth[] = "munge";
+    char stream[] = "amd_gpu_sampler";
+    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+    char port[] = "10544";
+    char host[] = "localhost";
+
+    ldms_t ldms = NULL;
+    int rc;
     const std::string nik_name = (to_truncate_names == 0) ? entry->data.kernel_name : filter_kernel_name(entry->data.kernel_name);
     const AgentInfo* agent_info = HsaRsrcFactory::Instance().GetAgentInfo(entry->agent);
 
@@ -361,7 +371,7 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       if (entry->feature_count > 0) {
         status = rocprofiler_group_get_data(&group);
         check_status(status);
-        if (verbose == 1) output_group(entry, "group0-data");
+      	if (verbose == 1) output_group(entry, "group0-data");
 
         status = rocprofiler_get_metrics(group.context);
         check_status(status);
@@ -370,19 +380,11 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       oss << index << "__" << filter_kernel_name(entry->data.kernel_name);
 
       int cx;
-      int rc;
-      char xprt[] = "sock";
-      char auth[] = "munge";
-      char stream[] = "amd_gpu_sampler";
-      ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
-      char port[] = "10544";
-      char host[] = "localhost";
-
-      ldms_t ldms = NULL;
-      int rc;
 
       ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
       rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
+      
+
 
 
       cx = snprintf(buffer, bufferSize, "{ \"dispatch\":%u, \"gpu-id\":%u, \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\", \"kernel-name\":\"%s\"%s",
@@ -412,7 +414,7 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       /*fflush(file_handle); <<< we need to understand this better before we use it */
     
    }
-    ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(s)+1);
+    ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(buffer)+1);
     printf("%s", buffer);
     if (record && to_clean) {
       delete record;
