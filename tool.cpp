@@ -56,7 +56,6 @@ THE SOFTWARE.
 #include <ldms/ldms_xprt.h>
 
 
-
 #define PUBLIC_API __attribute__((visibility("default")))
 #define CONSTRUCTOR_API __attribute__((constructor))
 #define DESTRUCTOR_API __attribute__((destructor))
@@ -143,7 +142,6 @@ static uint32_t CTX_OUTSTANDING_MAX = 0;
 uint32_t to_truncate_names = 0;
 // local trace buffer
 bool is_trace_local = true;
-
 static inline uint32_t GetPid() { return syscall(__NR_getpid); }
 static inline uint32_t GetTid() { return syscall(__NR_gettid); }
 
@@ -365,7 +363,11 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
     int rc;
     const std::string nik_name = (to_truncate_names == 0) ? entry->data.kernel_name : filter_kernel_name(entry->data.kernel_name);
     const AgentInfo* agent_info = HsaRsrcFactory::Instance().GetAgentInfo(entry->agent);
-
+    hsa_status_t status;
+    rocprofiler_time_id_t time_id = ROCPROFILER_TIME_ID_CLOCK_REALTIME;
+    uint64_t currTime;
+    //rocprofiler_timestamp_t timestamp;
+    //rocprofiler_get_timestamp(&timestamp);
     rocprofiler_group_t& group = entry->group;
     if (group.context != NULL) {
       if (entry->feature_count > 0) {
@@ -379,6 +381,7 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       std::ostringstream oss;
       oss << index << "__" << filter_kernel_name(entry->data.kernel_name);
 
+      status = rocprofiler_get_time(time_id, index, &currTime, NULL);
       int cx;
 
       ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
@@ -387,7 +390,8 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
 
 
 
-      cx = snprintf(buffer, bufferSize, "{ \"dispatch\":%u, \"gpu-id\":%u, \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\", \"kernel-name\":\"%s\"%s",
+      cx = snprintf(buffer, bufferSize, "{ \"timestamp\":%u, \"dispatch\":%u, \"gpu-id\":%u, \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\", \"kernel-name\":\"%s\"%s", 
+        currTime,
         index,
         agent_info->dev_index,
         entry->data.queue_id,
