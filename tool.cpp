@@ -100,6 +100,7 @@ struct context_entry_t {
   bool active;
   uint32_t index;
   hsa_agent_t agent;
+  uint64_t currTime;
   rocprofiler_group_t group;
   rocprofiler_feature_t* features;
   unsigned feature_count;
@@ -146,6 +147,7 @@ static inline uint32_t GetPid() { return syscall(__NR_getpid); }
 static inline uint32_t GetTid() { return syscall(__NR_gettid); }
 
 uint32_t my_pid = GetPid(); //grabs process ID 
+
 
 // Error handler
 void fatal(const std::string msg) {
@@ -363,9 +365,6 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
     int rc;
     const std::string nik_name = (to_truncate_names == 0) ? entry->data.kernel_name : filter_kernel_name(entry->data.kernel_name);
     const AgentInfo* agent_info = HsaRsrcFactory::Instance().GetAgentInfo(entry->agent);
-    hsa_status_t status;
-    rocprofiler_time_id_t time_id = ROCPROFILER_TIME_ID_CLOCK_REALTIME;
-    uint64_t currTime;
     //rocprofiler_timestamp_t timestamp;
     //rocprofiler_get_timestamp(&timestamp);
     rocprofiler_group_t& group = entry->group;
@@ -373,7 +372,7 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       if (entry->feature_count > 0) {
         status = rocprofiler_group_get_data(&group);
         check_status(status);
-      	if (verbose == 1) output_group(entry, "group0-data");
+        if (verbose == 1) output_group(entry, "group0-data");
 
         status = rocprofiler_get_metrics(group.context);
         check_status(status);
@@ -381,35 +380,36 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       std::ostringstream oss;
       oss << index << "__" << filter_kernel_name(entry->data.kernel_name);
 
-      status = rocprofiler_get_time(time_id, index, &currTime, NULL);
       int cx;
 
       ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
       rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
       
+      // currTime /= 10,000,000,000;
 
-
-
-      cx = snprintf(buffer, bufferSize, "{ \"timestamp\":%u, \"dispatch\":%u, \"gpu-id\":%u, \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\", \"kernel-name\":\"%s\"%s", 
-        currTime,
-        index,
+//"{ \"job-id\" : %d, \"node-name\" : \"%s\", \"rank\" : %d, \"timestamp\" : \"%.6f\", \"kokkos-perf-data\" : [ { \"name\" : \"%s\", \"type\" : %d, \"current-kernel-count\" : %llu, \"total-kernel-count\" : %llu, \"level\" : %u, \"current-kernel-time\" : %.9f, \"total-kernel-time\" : %.9f } ] }\n"`
+// not sure we need rank in ours...
+// \"queue-id\":%u, \"queue-index\":%lu, \"pid\":%u, \"tid\":%u, \"grd\":%u, \"wgr\":%u, \"lds\":%u, \"scr\":%u, \"vgpr\":%u, \"sgpr\":%u, \"fbar\":%u, \"sig\":\"0x%lx\", \"obj\":\"0x%lx\"" is the rest of what was on the line before
+      cx = snprintf(buffer, bufferSize, "{ \"gpu-id\":%u, \"timestamp (ms)\":%f, \"perf-data\": [ { \"kernel name\" : \"%s\", \"dispatch\": %u, \"%s\" } ] } ",
         agent_info->dev_index,
-        entry->data.queue_id,
+        (double) entry->currTime,
+        nik_name.c_str(),
+        index,
+        output_results(entry, oss.str().substr(0, KERNEL_NAME_LEN_MAX).c_str()).c_str());
+      /*  entry->data.queue_id,
         entry->data.queue_index,
         my_pid,
-        entry->data.thread_id,
-        entry->kernel_properties.grid_size,
-        entry->kernel_properties.workgroup_size,
+        // entry->data.thread_id, //maybe this is the rank?
+        // entry->kernel_properties.grid_size,
+        // entry->kernel_properties.workgroup_size,
         (entry->kernel_properties.lds_size + (AgentInfo::lds_block_size - 1)) & ~(AgentInfo::lds_block_size - 1),
         entry->kernel_properties.scratch_size,
         (entry->kernel_properties.vgpr_count + 1) * agent_info->vgpr_block_size,
         (entry->kernel_properties.sgpr_count + agent_info->sgpr_block_dflt) * agent_info->sgpr_block_size,
         entry->kernel_properties.fbarrier_count,
         entry->kernel_properties.signal.handle,
-        entry->kernel_properties.object,
-        nik_name.c_str(),
-        output_results(entry, oss.str().substr(0, KERNEL_NAME_LEN_MAX).c_str()).c_str());
-      if (record) snprintf(buffer+cx, bufferSize-cx, ", \"dispatch_time\":%lu, \"start\":%lu, \"end\":%lu, \"dispatch_end\":%lu }\n",
+        entry->kernel_properties.object);*/
+      if (record) snprintf(buffer+cx, bufferSize-cx, ", \"dispatch_time\":%lu, \"start\":%lu, \"end\":%lu, \"dispatch_end\":%lu }\n", //idk why this doesn't seem to be doing anything
         record->dispatch,
         record->begin,
         record->end,
@@ -417,7 +417,7 @@ bool dump_context_entry(context_entry_t* entry, bool to_clean = true) {
       else snprintf(buffer+cx, bufferSize-cx, " }\n");
       /*fflush(file_handle); <<< we need to understand this better before we use it */
     
-   }
+    }
     ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(buffer)+1);
     printf("%s", buffer);
     if (record && to_clean) {
@@ -660,9 +660,13 @@ hsa_status_t dispatch_callback(const rocprofiler_callback_data_t* callback_data,
   const uint32_t group_index = 0;
   status = rocprofiler_get_group(context, group_index, group);
   check_status(status);
-
+//set up timestamper
+  rocprofiler_time_id_t time_id = ROCPROFILER_TIME_ID_CLOCK_MONOTONIC;
+  uint64_t currTime;
+  status = rocprofiler_get_time(time_id, entry->index, &currTime, NULL);
   // Fill profiling context entry
   entry->agent = callback_data->agent;
+  entry->currTime = currTime;
   entry->group = *group;
   entry->features = features;
   entry->feature_count = feature_count;
