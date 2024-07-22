@@ -11,23 +11,27 @@ die () {
 test_stream_publish () {
   ldmsd_stream_publish -x sock -h localhost -p ${SAMP_PORT} -t string -s amd_gpu_sampler -a munge -f sampler.conf
 }
-OPTIND=1
-ldmsd -x sock:$SAMP_PORT \
-      -c sampler.conf \
-      -l /tmp/sampler_ldmsd.log \
-      -v DEBUG \
-      -a ${AUTH_TYPE} \
-      -r $(pwd)/ldmsd-sampler.pid \
-      -m 2G
+
 usage () {
+echo "
 	${0//\./} [options] [command]
-while getopts "x:sScthkvA:-" opt ; do
+        -s | 	starts ldmsd services
+        -X |    stops ldmsd services
+        -S |	gets status of ldmsd services
+        -h |    usage output
+        -v |    verbose output
+"
+}
+      
+while getopts "XsShvh" opt ; do
     case "${opt}" in
-        a)  AGENT=true				;;
-        b)  BACKDOOR=true			;;
-        o)  CLIENT_OPT=( "$OPTARG" "${CLIENT_OPT}" )			;;
-        v)  DEBUG=true				;;
-        d)  REMOTE_DISPLAY="$OPTARG"		;;
+        s)  MODE="start"			;;
+        X)  MODE="stop"				;;
+        S)  MODE="status"			;;
+	v)  DEBUG=true				;;
+    esac
+done
+
 # hello :) 
 AGG_PORT=10545
 SAMP_PORT=10544
@@ -35,6 +39,7 @@ AUTH_TYPE="munge"
 XPRT_TYPE="sock"
 SAMPLE_INTERVAL=1000000
 COMPONENT_ID=90002
+if [[ "$DEBUG"x == "truex" ]] ; then set -x ; fi
 
 command -v ldmsd &>/dev/null || die "Cannot find ldmsd"
 
@@ -95,34 +100,49 @@ AGGREGATOR
 
 [ -f sampler.conf ] || die "Cannot locate sampler.conf at $PWD"
 # first, let's launch ldmsd samplers daemon as a regular user
-ldmsd -x sock:$SAMP_PORT \
-      -c sampler.conf \
-      -l /tmp/sampler_ldmsd.log \
-      -v DEBUG \
-      -a ${AUTH_TYPE} \
-      -r $(pwd)/ldmsd-sampler.pid \
-      -m 2G
+case $MODE in
 
-sleep 10
-if ! ps aux |grep sampler_ldmsd &>/dev/null ; then
-  die "Sampler LDMSD didn't start"
-else
-  ps aux |grep sampler_ldmsd
-fi
+  start)
+    ldmsd -x sock:$SAMP_PORT \
+          -c sampler.conf \
+          -l /tmp/sampler_ldmsd.log \
+          -v DEBUG \
+          -a ${AUTH_TYPE} \
+          -r $(pwd)/ldmsd-sampler.pid \
+          -m 2G
+  
+    sleep 10
+    if ! [[ $(ps aux |grep sampler_ldmsd| grep -v grep) =~ sampler_ldmsd ]]
+    then
+      die "Sampler LDMSD didn't start"
+    else
+      ps aux |grep sampler_ldmsd | grep -v grep
+    fi
+  
+    [ -f aggregator.conf ] || die "Cannot locate aggregator.conf at $PWD"
+    ldmsd -x sock:$AGG_PORT \
+          -c aggregator.conf \
+          -l /tmp/aggregator_ldmsd.log \
+          -v DEBUG \
+          -a ${AUTH_TYPE} \
+          -r $(pwd)/ldmsd-aggregator.pid \
+          -m 2G
+  
+    sleep 10
+  
+    if ! [[ $(ps aux |grep aggregator_ldmsd |grep -v grep) =~ aggregator_ldms ]]
+    then
+      die "Aggregator LDMSD didn't start" 
+    else
+      ps aux |grep aggregator_ldmsd
+    fi
+  ;;
+  stop)
+    echo "this isn't implemented yet"
+  ;;
+  status)
+    echo "this isn't implemented yet"
+  ;;
 
-[ -f aggregator.conf ] || die "Cannot locate aggregator.conf at $PWD"
-ldmsd -x sock:$AGG_PORT \
-      -c aggregator.conf \
-      -l /tmp/aggregator_ldmsd.log \
-      -v DEBUG \
-      -a ${AUTH_TYPE} \
-      -r $(pwd)/ldmsd-aggregator.pid \
-      -m 2G
+esac
 
-sleep 10
-
-if ! ps aux |grep aggregator_ldmsd &>/dev/null ; then
-  die "Aggregator LDMSD didn't start" 
-else
-  ps aux |grep aggregator_ldmsd
-fi
