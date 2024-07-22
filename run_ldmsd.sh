@@ -1,5 +1,36 @@
 #!/bin/bash
+
+message () {
+    local color
+    local OPTIND
+    local opt
+    while getopts "crgymn" opt; do
+        case $opt in
+            c)  color=$(tput setaf 6) ;;
+            r)  color=$(tput setaf 1) ;;
+	    g)  color=$(tput setaf 2) ;;
+	    y)  color=$(tput setaf 3) ;;
+	    m)  color=$(tput setaf 5) ;;
+            *)  color=$(tput sgr0)    ;;
+        esac
+    done
+    shift $(($OPTIND -1))
+    printf "${color}%-10s %-50s %-50s %-50s\n" "$1" "$2" "$3" "$4"
+    tput sgr0
+}
+
+status_ldmsd () {
+  message -g "Running LDMS Processes on $(hostname -s)"
+  message -g "Sampler: $(ps aux |grep sampler_ldmsd| grep -v grep)"
+  message -g "Aggregator: $(ps aux |grep aggregator_ldmsd |grep -v grep)"
+  	
+}
+
+
 kill_ldmsd () {
+  message -g "Killing the following PIDs"
+  message -g "$(ps aux |grep sampler_ldmsd| grep -v grep)"
+  message -g "$(ps aux |grep aggregator_ldmsd |grep -v grep)"
   ps aux |grep ldmsd | grep -v grep | awk '{print $2}' | xargs kill -9
 }
 
@@ -8,8 +39,16 @@ die () {
   exit -1
 }
 
-test_stream_publish () {
-  ldmsd_stream_publish -x sock -h localhost -p ${SAMP_PORT} -t string -s amd_gpu_sampler -a munge -f sampler.conf
+test_ldmsd_streams_publish () {
+  local _testfile=$1
+  local _token=$2
+  ldmsd_stream_publish -x sock -h localhost -p ${SAMP_PORT} -t string -s amd_gpu_sampler -a munge -f $_testfile
+  if grep -r "$TOKEN THIS IS A SIMPLE TEST TO EXERCISE THE USABILITY OF LDMSD STREAMS" $TEMPDIR &>/dev/null ; then
+    message -g "TEST SUCCEEDED"
+    grep -r "$TOKEN THIS IS A SIMPLE TEST TO EXERCISE THE USABILITY OF LDMSD STREAMS" $TEMPDIR
+  else
+    message -r "TEST FAILED"
+  fi
 }
 
 usage () {
@@ -20,14 +59,18 @@ echo "
         -S |	gets status of ldmsd services
         -h |    usage output
         -v |    verbose output
+        -t |    test ldmsd_stream_publish
 "
 }
       
-while getopts "XsShvh" opt ; do
+while getopts "XsStvh" opt ; do
     case "${opt}" in
-        s)  MODE="start"			;;
+        s)  MODE="start"
+            TEMPDIR=$(mktemp -p /local_data -d --suffix=.ldms XXXXX)
+        ;;
         X)  MODE="stop"				;;
         S)  MODE="status"			;;
+        t)  MODE="test"				;;
 	v)  DEBUG=true				;;
     esac
 done
@@ -39,6 +82,10 @@ AUTH_TYPE="munge"
 XPRT_TYPE="sock"
 SAMPLE_INTERVAL=1000000
 COMPONENT_ID=90002
+TOKEN=$RANDOM
+TEMPDIR=${TEMPDIR:=$(ps aux |grep ldmsd-sampler | awk -F'/' '$2 ~ /local_data/ {print "/"$2"/"$3"/"}')}
+chmod -Rf a+wrX $TEMPDIR
+
 if [[ "$DEBUG"x == "truex" ]] ; then set -x ; fi
 
 command -v ldmsd &>/dev/null || die "Cannot find ldmsd"
@@ -62,7 +109,7 @@ auth_add name=$AUTH_TYPE plugin=$AUTH_TYPE
 
 # Loading the stream_csv_store plugin
 load name=stream_csv_store
-config name=stream_csv_store path=/local_data/amd_gpu_sampler_data container=gpu_sampler_data stream=amd_gpu_sampler buffer=0
+config name=stream_csv_store path=$TEMPDIR container=gpu_sampler_data stream=amd_gpu_sampler buffer=0
 
 # Loading the store_csv plugin
 load name=store_csv
@@ -70,7 +117,7 @@ load name=store_csv
 # Store Group Add
 strgp_add name=store_csv plugin=store_csv schema=meminfo container=meminfo
 
-config name=store_csv path=/local_data/amd_gpu_sampler_data
+config name=store_csv path=$TEMPDIR
 
 # Store Group Producer Add
 strgp_prdcr_add name=store_csv regex=.*
@@ -105,10 +152,10 @@ case $MODE in
   start)
     ldmsd -x sock:$SAMP_PORT \
           -c sampler.conf \
-          -l /tmp/sampler_ldmsd.log \
+          -l $TEMPDIR/sampler_ldmsd.log \
           -v DEBUG \
           -a ${AUTH_TYPE} \
-          -r $(pwd)/ldmsd-sampler.pid \
+          -r $TEMPDIR/ldmsd-sampler.pid \
           -m 2G
   
     sleep 10
@@ -116,16 +163,16 @@ case $MODE in
     then
       die "Sampler LDMSD didn't start"
     else
-      ps aux |grep sampler_ldmsd | grep -v grep
+      message -g "STARTED: $(ps aux |grep sampler_ldmsd | grep -v grep)"
     fi
   
     [ -f aggregator.conf ] || die "Cannot locate aggregator.conf at $PWD"
     ldmsd -x sock:$AGG_PORT \
           -c aggregator.conf \
-          -l /tmp/aggregator_ldmsd.log \
+          -l $TEMPDIR/aggregator_ldmsd.log \
           -v DEBUG \
           -a ${AUTH_TYPE} \
-          -r $(pwd)/ldmsd-aggregator.pid \
+          -r $TEMPDIR/ldmsd-aggregator.pid \
           -m 2G
   
     sleep 10
@@ -134,14 +181,24 @@ case $MODE in
     then
       die "Aggregator LDMSD didn't start" 
     else
-      ps aux |grep aggregator_ldmsd
+      message -g "STARTED: $(ps aux |grep aggregator_ldmsd | grep -v grep)"
+      
     fi
   ;;
   stop)
-    echo "this isn't implemented yet"
+    kill_ldmsd
   ;;
   status)
-    echo "this isn't implemented yet"
+    status_ldmsd
+  ;;
+  test)
+cat << TESTFILE >testfile.txt
+
+$TOKEN THIS IS A SIMPLE TEST TO EXERCISE THE USABILITY OF LDMSD STREAMS 
+
+TESTFILE
+
+    [ -f testfile.txt ] && test_ldmsd_streams_publish testfile.txt
   ;;
 
 esac
