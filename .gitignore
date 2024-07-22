@@ -1,3 +1,7 @@
+*.swp
+*.conf
+*.pid
+testfile.txt
 a.out
 build/
 foo*
