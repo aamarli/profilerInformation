@@ -51,8 +51,8 @@ test_ldmsd_streams_publish () {
 }
 
 usage () {
-echo "
-	${0//\./} [options] [command]
+message -m "
+	${0//*\/} [options] [command]
         -s | 	starts ldmsd services
         -X |    stops ldmsd services
         -S |	gets status of ldmsd services
@@ -69,10 +69,12 @@ while getopts "XsStvh" opt ; do
         s)  MODE="start"
             TEMPDIR=$(mktemp -p /local_data -d --suffix=.ldms XXXXX)
         ;;
+	h)  usage && exit 0			;;
         X)  MODE="stop"				;;
         S)  MODE="status"			;;
         t)  MODE="test"				;;
 	v)  DEBUG=true				;;
+	*)  die "$* is unsupported"		;;
     esac
 done
 
@@ -85,7 +87,9 @@ SAMPLE_INTERVAL=1000000
 COMPONENT_ID=90002
 TOKEN=$RANDOM
 TEMPDIR=${TEMPDIR:=$(ps aux |grep ldmsd-sampler | awk -F'/' '$2 ~ /local_data/ {print "/"$2"/"$3"/"}')}
-chmod -Rf a+wrX $TEMPDIR
+
+[[ -d $TEMPDIR ]] && chmod -Rf a+wrX $TEMPDIR
+
 
 if [[ "$DEBUG"x == "truex" ]] ; then set -x ; fi
 
