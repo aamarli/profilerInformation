@@ -5,7 +5,7 @@
 [Abstract](abstract.md)
 
 ## Tools
-(Tools)[tools.md]
+[Tools](tools.md)
 
 ## Summary
-(Summary)[Summary.md]
+[Summary](Summary.md)
