@@ -1,5 +1,4 @@
 #!/bin/bash
-
 message () {
     local color
     local OPTIND
@@ -63,6 +62,8 @@ echo "
 "
 }
       
+if [[ $# -lt 1 ]] ; then usage ; die "This script requires at least one argument" ; fi
+
 while getopts "XsStvh" opt ; do
     case "${opt}" in
         s)  MODE="start"
