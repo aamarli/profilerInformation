@@ -143,6 +143,8 @@ rocprofiler_configure_buffer_tracing_service(rocprofiler_context_id_t          c
 |operations_count | Specifies the number of operations we are tracing. Use `0` if we are tracing all|
 |buffer_id | defines the output parameter for the function call|
 
+** NOT COMPLETE **
+
 
 
 
