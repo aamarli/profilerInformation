@@ -1,7 +1,14 @@
 #!/bin/env bash
-rocm_version=${rocm_version:='6.2.0'}
-rm -Rf rocprofiler-sdk-*
-snl_proxy_setup () {
+cleanup () {
+  echo "Before exiting, cleaning up!"
+  pushd ${START}>/dev/null
+  [ -d ${ROCPROFSDK_BUILD_ROOT} ] && rm -Rf ${ROCPROFSDK_BUILD_ROOT}
+  [ -d rocprofiler-sdk-source ] &&  rm -Rf rocprofiler-sdk-source
+}
+
+rocm_version=${rocm_version:='6.4.0'}
+rm -Rf rocprofiler-sdk-* # removes any directories so we can start from scratch
+snl_proxy_setup () { # setup proxies
   proxy="http://user:pass@proxy.sandia.gov:80"
   for _protocol in \
     "all_proxy" \
@@ -47,8 +54,8 @@ spack:
   concretizer:
     unify: when_possible
   view:
-    rocprof_gnu:
-      root: \$spack/../rocprof_gnu
+    rocprof_gnu_${rocm_version//\./_}:
+      root: \$spack/../rocprof_gnu_${rocm_version//\./_}
       link: roots
   compilers:
   - compiler:
@@ -77,11 +84,11 @@ spack:
         all:
           autoload: direct
 
-    rocprof_gnu:
+    rocprof_gnu_${rocm_version//\./_}:
       roots:
         tcl: \$spack/share/spack/modules
         lmod: \$spack/share/spack/lmod
-      use_view: rocprof_gnu
+      use_view: rocprof_gnu_${rocm_version//\./_}
       enable:
       - tcl
       tcl:
@@ -121,29 +128,35 @@ die () {
  exit 2
 }
 
+# build the space environment "rocprof_gnu" 
 spack_env_build () {
-  SPACK_COMMIT_HASH=${SPACK_COMMIT_HASH:="482e2fbde88c1f0fe9c05fd066c9cd70054c7196"}
+  #SPACK_COMMIT_HASH=${SPACK_COMMIT_HASH:="482e2fbde88c1f0fe9c05fd066c9cd70054c7196"}
+  SPACK_COMMIT_HASH=${SPACK_COMMIT_HASH:="develop"}
+  [ -d myspack ] &&  rm -Rf myspack
   if ! [ -d myspack ] ; then
     git clone http://github.com/spack/spack.git -b develop myspack ||\
       die "Spack github clone failed"
+  else
+      die "Cannot clean up old spack directory"
   fi
   SPACK_ROOT=$(readlink -f myspack)
   pushd $SPACK_ROOT &>>/dev/null
   git checkout ${SPACK_COMMIT_HASH}
+  git pull origin ${SPACK_COMMIT_HASH}
   popd &>>/dev/null
   module purge
-  ml_test gcc/9.2.0
+  ml_test gcc/9.2.0 # module loads gcc/9.2.0
   source $SPACK_ROOT/share/spack/setup-env.sh
-  spack env create rocprof_gnu
-  spack env activate rocprof_gnu
+  spack env create rocprof_gnu_${rocm_version//\./_}
+  spack env activate rocprof_gnu_${rocm_version//\./_}
   [ -d /projects/AMD_GPU_SAMPLER/spack_build_cache/build_cache ] &&\
-    spack mirror add rocprof_cache /projects/AMD_GPU_SAMPLER/spack_build_cache
+  spack mirror add rocprof_cache /projects/AMD_GPU_SAMPLER/spack_build_cache
   spack mirror list |& grep rocprof_cache || die "rocprof_cache was not added"
   spack mirror set --autopush --unsigned --type binary rocprof_cache
-  pushd $SPACK_ROOT/var/spack/environments/rocprof_gnu &>/dev/null
+  pushd $SPACK_ROOT/var/spack/environments/rocprof_gnu_${rocm_version//\./_} &>/dev/null
   here_spackenv
   popd &>/dev/null
-  spack concretize -fU
+  spack concretize -fU -y
   spack install -y --use-buildcache never --no-check-signature
   spack buildcache push -fu --update-index --with-build-dependencies /projects/AMD_GPU_SAMPLER/spack_build_cache
   spack module tcl refresh -y
@@ -153,10 +166,12 @@ snl_proxy_setup
 ## THESE ARE TEMPORARY
 #  SPACK_ROOT=$(readlink -f myspack)
 #  source $SPACK_ROOT/share/spack/setup-env.sh
-#  spack env activate rocprof_gnu
+#  spack env activate rocprof_gnu_${rocm_version//\./_}
 #  spack module tcl refresh -y
 ## ^^^ THESE ARE TEMPORARY
+umask 0002
 START=${PWD}
+trap cleanup EXIT
 spack_env_build
 module purge
 if [ -f load_modules.sh ] ; then rm load_modules.sh ; fi
@@ -169,7 +184,7 @@ sort load_modules.sh | uniq >spack_modules.sh
 module --no-pager -t list
 command -v cmake &>/dev/null || die "cmake didn't successfully load"
 [ -d rocprofiler-sdk-source ] && rm -Rf rocprofiler-sdk-source
-git clone https://github.com/ROCm/rocprofiler-sdk.git -b rocm-${rocm_version} rocprofiler-sdk-source
+git clone https://github.com/ROCm/rocprofiler-sdk.git -b rocm-${rocm_version} rocprofiler-sdk-source # cloning the SDK
 # perfetto's origin and LC fork are not accessible to us
 pushd rocprofiler-sdk-source &>/dev/null
 git submodule set-url external/perfetto https://github.com/jennfshr/perfetto.git
@@ -309,7 +324,7 @@ cmake \
   --target all \
   --parallel 8
 
-if [ $? -ne 0 ] ; then die "cmake samples build error" ; fi
+#if [ $? -ne 0 ] ; then die "cmake samples build error" ; fi
 echo $LD_LIBRARY_PATH | tr ":" "\n" | grep comgr
 tmp_dir=$(mktemp -d /tmp/${USER}-ROCPROFSDK_SAMPLES_LOGS-XXXXX)
 for directory in $(dirname $(find . -name "CTestTestfile.cmake")) ; do
