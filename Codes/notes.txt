@@ -1,0 +1,18 @@
+First we needed to include the ldms libraries
+
+"
+	#include <ldms/ldms.h>
+	#include <ldms/ldmsd_stream.h>
+	#include <ldms/ldms_xprt.h>
+"
+
+/projects/AMD_GPU_SAMPLER/aamarli
+
+
+In the method "dump_context_entry" we implement our flush to the stream.
+If the index is not maxxed out, we create a file and buffer. Then establish
+the connection to ldms with the xprt, auth, stream, typ, port, and host. 
+We also have an ldms object that is NULL.
+Finally at the end we use the ldms function, lmds_xprt_new_with_auth() to establish a new connection for our ldms object and we connect our rc with ldms_xport_connect_by_name()
+cx is where we dump out context in the format that we want. We use snprintf() to define our buffer and the context format along with the infor from the profiler (I think this may just come with the profiler)
+One this is complete, we publish to the stream using ldmsd_stream_publish() which will take our object the stream, and the buffer information and publish it to ldms.
