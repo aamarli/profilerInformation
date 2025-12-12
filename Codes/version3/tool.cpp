@@ -2753,7 +2753,7 @@ generate_output(cleanup_mode _cleanup_mode)
                              (outdata.num_bytes / 1024));
 
     if(tool::get_config().csv_output && outdata.num_output > 0 &&
-       outdata.num_bytes >= tool::get_config().minimum_output_bytes)
+		    outdata.num_bytes >= tool::get_config().minimum_output_bytes)
     {
 	    // here we will just call our function that gets the string
 	    std::string csv_string = get_kernel_dispatch_csv_string(
@@ -2763,43 +2763,29 @@ generate_output(cleanup_mode _cleanup_mode)
 			    );
 	    std::cerr << "Captured CSV Preview: " << csv_string.substr(0, 100) << "..." << std::endl;
 
-        tool::generate_csv(tool::get_config(), *tool_metadata, agents_output);
-//	    //ROCP_INFO << "using csv"; 
-    int bufferSize = 4096;
-    char xprt[] = "sock";
-    char auth[] = "none";
-    char stream[] = "amd_gpu_sampler";
-    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
-    char port[] = "10544";
-    char host[] = "localhost";
-    ldms_t ldms = NULL;
-    int rc;
-    ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
-    rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
-    if (rc) {
-	    ROCP_INFO << "LDMS Library: Error connecting";
-    }
+	    tool::generate_csv(tool::get_config(), *tool_metadata, agents_output);
+	    //	    //ROCP_INFO << "using csv"; 
+	    int bufferSize = 4096;
+	    char xprt[] = "sock";
+	    char auth[] = "none";
+	    char stream[] = "amd_gpu_sampler";
+	    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+	    char port[] = "10544";
+	    char host[] = "localhost";
+	    ldms_t ldms = NULL;
+	    int rc;
+	    ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
+	    rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
+	    if (rc) {
+		    ROCP_INFO << "LDMS Library: Error connecting";
+	    }
 
-    std::string filename = get_output_filename(tool::get_config(), "agent_info", ".csv");
-    //std::string filename = "out_agent_info.csv";
-    std::ifstream csv_file_stream(filename);
-    if (csv_file_stream)
-    {
-	ROCP_INFO << "able to open \n";
-	std::string final_csv_string(
-			(std::istreambuf_iterator<char>(csv_file_stream)),
-			std::istreambuf_iterator<char>()
-			);
-	csv_file_stream.close();
-	char* buffer = (char*) malloc (sizeof(char) * bufferSize);
-	int cx = snprintf(buffer, bufferSize,"%s", final_csv_string.c_str());
-	ROCP_INFO << buffer;
-	int attempt = ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(buffer) + 1);
-	ROCP_INFO << attempt;
-	free(buffer);
-} else {
-	ROCP_ERROR << "Could not re-open CSV output file for reading: " << filename;
-}
+	    char* buffer = (char*) malloc (sizeof(char) * bufferSize);
+	    int cx = snprintf(buffer, bufferSize,"%s", csv_string.c_str());
+	    ROCP_INFO << buffer;
+	    int attempt = ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(buffer) + 1);
+	    ROCP_INFO << attempt;
+	    free(buffer);
     }
 
     if(tool::get_config().stats && tool::get_config().csv_output && outdata.num_output > 0 &&
