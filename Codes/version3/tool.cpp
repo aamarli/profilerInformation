@@ -140,6 +140,13 @@ using sigaction_func_t = int (*)(int signum,
                                  const struct sigaction* __restrict__ act,
                                  struct sigaction* __restrict__ oldact);
 
+ldms_t tool_ldms_handle = nullptr; 
+const char* tool_ldms_stream_name = "amd_gpu_sampler";
+const char* tool_ldms_host = "localhost";
+const char* tool_ldms_port = "10544";
+const char* tool_ldms_xprt = "sock";
+const char* tool_ldms_auth = "none";
+
 constexpr auto rocprofv3_num_signals     = NSIG;
 constexpr auto rocprofv3_handled_signals = std::array<int, 4>{SIGINT, SIGQUIT, SIGABRT, SIGTERM};
 
@@ -1915,6 +1922,11 @@ tool_attach(rocprofiler_client_detach_t /*detach_func*/,
 int
 tool_init(rocprofiler_client_finalize_t fini_func, void* tool_data)
 {
+	tool_ldms_handle = ldms_xprt_new_with_auth(tool_ldms_xprt, NULL, tool_ldms_auth, NULL);
+	int rc = ldms_xprt_connect_by_name(tool_ldms_handle, tool_ldms_host, tool_ldms_port, NULL, NULL);
+	if (rc) {
+		ROCP_INFO << "LDMS Library: Error connecting";
+	}
     static constexpr auto null_context_id = rocprofiler_context_id_t{.handle = 0};
     static constexpr auto null_buffer_id  = rocprofiler_buffer_id_t{.handle = 0};
 
@@ -2543,7 +2555,8 @@ generate_config_output(const tool::config& cfg, const tool::metadata& tool_metad
     stream.close();
 }
 
-std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const tool::metadata& meta, const tool::generator<tool::tool_buffer_tracing_kernel_dispatch_ext_record_t>& data)
+template <typename T>
+std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const tool::metadata& meta, const tool::generator<T>& data)
 {
 	std::stringstream ss;
 
@@ -2646,6 +2659,7 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 
     if(output_v.get_generator().empty()) return;
 
+
     // if it has reached this point, the generator is not empty
     auto _num_bytes = output_v.get_num_bytes();
     output_data_v.num_output += 1;
@@ -2662,11 +2676,34 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
         contributions_v.emplace_back(output_v.buffer_type_v, output_v.stats);
     }
 
-    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes)
+    if constexpr (DomainT == domain_type::KERNEL_DISPATCH)
     {
-	    ROCP_INFO << "generating csv in generate_output";
-        tool::generate_csv(
-            tool::get_config(), *tool_metadata, output_v.get_generator(), output_v.stats);
+
+	    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes)
+	    {
+		    std::string csv_string = get_kernel_dispatch_csv_string(
+				    tool::get_config(),
+				    *tool_metadata,
+				    output_v.get_generator()
+				    );
+		    if (!csv_string.empty())
+		    {
+			    int bufferSize = csv_string.length() + 1;
+			    char* buffer = (char*) malloc(bufferSize);
+			    memcpy(buffer, csv_string.c_str(), bufferSize);
+			    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+			    int attempt = ldmsd_stream_publish(tool_ldms_handle, tool_ldms_stream_name, typ, buffer, bufferSize);
+			    if (attempt == 0)
+			    {
+				    ROCP_INFO << "[LDMS] Success!";
+			    }
+			    else {
+				    ROCP_INFO << "[LDMS] failure!";
+			    }
+			    free(buffer);
+		    }
+		    tool::generate_csv(tool::get_config(), *tool_metadata, output_v.get_generator(), output_v.stats);
+	    }
     }
 }
 
@@ -2755,37 +2792,8 @@ generate_output(cleanup_mode _cleanup_mode)
     if(tool::get_config().csv_output && outdata.num_output > 0 &&
 		    outdata.num_bytes >= tool::get_config().minimum_output_bytes)
     {
-	    // here we will just call our function that gets the string
-	    std::string csv_string = get_kernel_dispatch_csv_string(
-			    tool::get_config(),
-			    *tool_metadata,
-			    kernel_dispatch_output.get_generator()
-			    );
-	    std::cerr << "Captured CSV Preview: " << csv_string.substr(0, 100) << "..." << std::endl;
-
 	    tool::generate_csv(tool::get_config(), *tool_metadata, agents_output);
-	    //	    //ROCP_INFO << "using csv"; 
-	    int bufferSize = 4096;
-	    char xprt[] = "sock";
-	    char auth[] = "none";
-	    char stream[] = "amd_gpu_sampler";
-	    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
-	    char port[] = "10544";
-	    char host[] = "localhost";
-	    ldms_t ldms = NULL;
-	    int rc;
-	    ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
-	    rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
-	    if (rc) {
-		    ROCP_INFO << "LDMS Library: Error connecting";
-	    }
 
-	    char* buffer = (char*) malloc (sizeof(char) * bufferSize);
-	    int cx = snprintf(buffer, bufferSize,"%s", csv_string.c_str());
-	    ROCP_INFO << buffer;
-	    int attempt = ldmsd_stream_publish(ldms, stream, typ, buffer, strlen(buffer) + 1);
-	    ROCP_INFO << attempt;
-	    free(buffer);
     }
 
     if(tool::get_config().stats && tool::get_config().csv_output && outdata.num_output > 0 &&
@@ -2797,17 +2805,6 @@ generate_output(cleanup_mode _cleanup_mode)
     if(tool::get_config().json_output && outdata.num_output > 0 &&
        outdata.num_bytes >= tool::get_config().minimum_output_bytes)
     {
-	    int bufferSize = 4096;
-	    char xprt[] = "sock";
-	    char auth[] = "none";
-	    char stream[] = "amg_gpu_sampler";
-	    ldmsd_stream_type_t typ = LDMSD_STREAM_JSON;
-	    char port[] = "10544";
-	    char host[] = "localhost";
-	    ldms_t ldms = NULL;
-	    int rc;
-	    ldms = ldms_xprt_new_with_auth(xprt, NULL, auth, NULL);
-	    rc = ldms_xprt_connect_by_name(ldms, host, port, NULL, NULL);
 
         auto json_ar = tool::open_json(tool::get_config());
 
@@ -2834,21 +2831,6 @@ generate_output(cleanup_mode _cleanup_mode)
 
 	
         tool::close_json(json_ar);
-	std::string filename = get_output_filename(tool::get_config(), "results", ".json");
-	std::ifstream json_file_stream(filename);
-	if (json_file_stream)
-	{
-		std::string final_json_string(
-				(std::istreambuf_iterator<char>(json_file_stream)),
-				std::istreambuf_iterator<char>()
-				);
-		json_file_stream.close();
-		std::vector<char> json_buffer(final_json_string.begin(), final_json_string.end());
-		json_buffer.push_back('\0');
-	ldmsd_stream_publish(ldms, stream, typ, json_buffer.data(), sizeof(json_ar) + 1);
-	} else {
-		ROCP_ERROR << "Could not re-open JSON output file for reading: " << filename;
-	}
     }
 
     if(tool::get_config().pftrace_output && outdata.num_output > 0 &&
