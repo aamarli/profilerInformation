@@ -2686,6 +2686,7 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 				    *tool_metadata,
 				    output_v.get_generator()
 				    );
+		    ROCP_INFO << "[GRABBING THE CSV]: " << csv_string;
 		    if (!csv_string.empty())
 		    {
 			    int bufferSize = csv_string.length() + 1;
