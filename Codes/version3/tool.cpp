@@ -1922,6 +1922,7 @@ tool_attach(rocprofiler_client_detach_t /*detach_func*/,
 int
 tool_init(rocprofiler_client_finalize_t fini_func, void* tool_data)
 {
+	ROCP_INFO << "LDMS Connecting...";
 	tool_ldms_handle = ldms_xprt_new_with_auth(tool_ldms_xprt, NULL, tool_ldms_auth, NULL);
 	int rc = ldms_xprt_connect_by_name(tool_ldms_handle, tool_ldms_host, tool_ldms_port, NULL, NULL);
 	if (rc) {
@@ -2569,11 +2570,13 @@ std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const
 	// Standard AMD LDS alignment (ensuring variable exists locally)
 	constexpr uint64_t lds_align_mask = 128;
 
+	bool has_data = false;
 	// 2. Iterate and Format Data
 	for(auto ditr : data)
 	{
 		for(auto record : data.get(ditr))
 		{
+			has_data = true;
 			auto row_ss = std::stringstream{};
 
 			// Get Kernel Info
@@ -2617,6 +2620,7 @@ std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const
 			ss << row_ss.str();
 		}
 	}
+	if (!has_data) return "";
 
 	return ss.str();
 }
@@ -2660,40 +2664,26 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
     if(output_v.get_generator().empty()) return;
 
 
-    // if it has reached this point, the generator is not empty
-    auto _num_bytes = output_v.get_num_bytes();
-    output_data_v.num_output += 1;
-    output_data_v.num_bytes += _num_bytes;
-
-    if(tool::get_config().stats || tool::get_config().summary_output)
-    {
-        output_v.stats =
-            tool::generate_stats(tool::get_config(), *tool_metadata, output_v.get_generator());
-    }
-
-    if(output_v.stats)
-    {
-        contributions_v.emplace_back(output_v.buffer_type_v, output_v.stats);
-    }
 
     if constexpr (DomainT == domain_type::KERNEL_DISPATCH)
     {
 
-	    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes)
+	    ROCP_INFO << "[LDMS] Processing KERNEL_DISPATCH buffer...";
+//	    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes)
 	    {
 		    std::string csv_string = get_kernel_dispatch_csv_string(
 				    tool::get_config(),
 				    *tool_metadata,
 				    output_v.get_generator()
 				    );
-		    ROCP_INFO << "[GRABBING THE CSV]: " << csv_string;
 		    if (!csv_string.empty())
 		    {
-			    int bufferSize = csv_string.length() + 1;
-			    char* buffer = (char*) malloc(bufferSize);
-			    memcpy(buffer, csv_string.c_str(), bufferSize);
-			    ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
-			    int attempt = ldmsd_stream_publish(tool_ldms_handle, tool_ldms_stream_name, typ, buffer, bufferSize);
+			    ROCP_INFO << "[LDMS] Generated CSV String...";
+			   // int bufferSize = csv_string.length() + 1;
+			   // char* buffer = (char*) malloc(bufferSize);
+			   // memcpy(buffer, csv_string.c_str(), bufferSize);
+			   // ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+			    int attempt = ldmsd_stream_publish(tool_ldms_handle, tool_ldms_stream_name, LDMSD_STREAM_STRING, const_cast<char*>(csv_string.c_str()), csv_string.length() + 1);
 			    if (attempt == 0)
 			    {
 				    ROCP_INFO << "[LDMS] Success!";
@@ -2701,9 +2691,27 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 			    else {
 				    ROCP_INFO << "[LDMS] failure!";
 			    }
-			    free(buffer);
+			    //free(buffer);
 		    }
-		    tool::generate_csv(tool::get_config(), *tool_metadata, output_v.get_generator(), output_v.stats);
+
+		    // if it has reached this point, the generator is not empty
+		    auto _num_bytes = output_v.get_num_bytes();
+		    output_data_v.num_output += 1;
+		    output_data_v.num_bytes += _num_bytes;
+
+		    if(tool::get_config().stats || tool::get_config().summary_output)
+		    {
+			    output_v.stats =
+				    tool::generate_stats(tool::get_config(), *tool_metadata, output_v.get_generator());
+		    }
+
+		    if(output_v.stats)
+		    {
+			    contributions_v.emplace_back(output_v.buffer_type_v, output_v.stats);
+		    }
+		    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes) {
+			    tool::generate_csv(tool::get_config(), *tool_metadata, output_v.get_generator(), output_v.stats);
+		    }
 	    }
     }
 }
