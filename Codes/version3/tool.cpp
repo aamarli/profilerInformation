@@ -1922,6 +1922,7 @@ tool_attach(rocprofiler_client_detach_t /*detach_func*/,
 int
 tool_init(rocprofiler_client_finalize_t fini_func, void* tool_data)
 {
+	// set up LDMS connection
 	ROCP_INFO << "LDMS Connecting...";
 	tool_ldms_handle = ldms_xprt_new_with_auth(tool_ldms_xprt, NULL, tool_ldms_auth, NULL);
 	int rc = ldms_xprt_connect_by_name(tool_ldms_handle, tool_ldms_host, tool_ldms_port, NULL, NULL);
@@ -2556,12 +2557,16 @@ generate_config_output(const tool::config& cfg, const tool::metadata& tool_metad
     stream.close();
 }
 
+
+// Beginning of changes //
+// this function imitates the generate_csv function found in /source/lib/output/generateCSV.cpp
+// we are specifically imitating the overloaded version that takes the kernel_dispatch version found on line 254 
 template <typename T>
 std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const tool::metadata& meta, const tool::generator<T>& data)
 {
 	std::stringstream ss;
 
-	// 1. Write Header
+	// Write Header
 	ss << "Kind,Agent_Id,Queue_Id,Stream_Id,Thread_Id,Dispatch_Id,Kernel_Id,"
 		<< "Kernel_Name,Correlation_Id,Start_Timestamp,End_Timestamp,LDS_Block_Size,"
 		<< "Scratch_Size,VGPR_Count,Accum_VGPR_Count,SGPR_Count,Workgroup_Size_X,"
@@ -2571,7 +2576,8 @@ std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const
 	constexpr uint64_t lds_align_mask = 128;
 
 	bool has_data = false;
-	// 2. Iterate and Format Data
+
+	// Iterate and Format Data for CSV format
 	for(auto ditr : data)
 	{
 		for(auto record : data.get(ditr))
@@ -2617,14 +2623,17 @@ std::string get_kernel_dispatch_csv_string(const tool::output_config& cfg, const
 					record.dispatch_info.grid_size.y,
 					record.dispatch_info.grid_size.z);
 
+			// stores it into our string buffer
 			ss << row_ss.str();
 		}
 	}
 	if (!has_data) return "";
 
+	// returns the string buffer so it can be published 
 	return ss.str();
 }
 
+// I edited this function slightly to only run the method defined above when we use KERNEL_DISPATCH
 template <typename Tp, domain_type DomainT>
 void
 generate_output(tool::buffered_output<Tp, DomainT>& output_v,
@@ -2665,10 +2674,13 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 
 
 
+    // this portion of the code will execute if we pass in the --kernel_trace flag while running
+    // examples of how this is used can be seen in buffered_output.hpp
     if constexpr (DomainT == domain_type::KERNEL_DISPATCH)
     {
 
 	    ROCP_INFO << "[LDMS] Processing KERNEL_DISPATCH buffer...";
+	    // not sure if this line is needed. I think this portion of code may run even if we don't use CSV format
 //	    if(tool::get_config().csv_output && _num_bytes >= tool::get_config().minimum_output_bytes)
 	    {
 		    std::string csv_string = get_kernel_dispatch_csv_string(
@@ -2679,10 +2691,7 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 		    if (!csv_string.empty())
 		    {
 			    ROCP_INFO << "[LDMS] Generated CSV String...";
-			   // int bufferSize = csv_string.length() + 1;
-			   // char* buffer = (char*) malloc(bufferSize);
-			   // memcpy(buffer, csv_string.c_str(), bufferSize);
-			   // ldmsd_stream_type_t typ = LDMSD_STREAM_STRING;
+			    // attempts to publish to stream
 			    int attempt = ldmsd_stream_publish(tool_ldms_handle, tool_ldms_stream_name, LDMSD_STREAM_STRING, const_cast<char*>(csv_string.c_str()), csv_string.length() + 1);
 			    if (attempt == 0)
 			    {
@@ -2691,8 +2700,9 @@ generate_output(tool::buffered_output<Tp, DomainT>& output_v,
 			    else {
 				    ROCP_INFO << "[LDMS] failure!";
 			    }
-			    //free(buffer);
 		    }
+
+		    // rest of the code is the same
 
 		    // if it has reached this point, the generator is not empty
 		    auto _num_bytes = output_v.get_num_bytes();
@@ -2775,6 +2785,7 @@ generate_output(cleanup_mode _cleanup_mode)
     auto _dtor = common::scope_destructor{run_cleanup};
 
     // this portion actually writes the information to file
+    // this will call the template function above 
     generate_output(kernel_dispatch_output, outdata, contributions, cleanups);
     generate_output(hsa_output, outdata, contributions, cleanups);
     generate_output(hip_output, outdata, contributions, cleanups);
